@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "cryptography"
+version = "0.1.0"
+description = ""
+authors = ["Keviinplz <kevin.pinochet@ug.uchile.cl>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+aiohttp = "^3.8.4"
+pydantic = "^2.0.3"
+
+
+[tool.poetry.group.dev.dependencies]
+mypy = "^1.4.1"
+black = "^23.7.0"
+isort = "^5.12.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
