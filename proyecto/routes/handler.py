@@ -3,7 +3,7 @@ import uuid
 from aiohttp import WSCloseCode, web
 
 from proyecto.dispatcher import MessageDispatcher
-from proyecto.models import LotteryState, Player
+from proyecto.models import LotteryState
 from proyecto.messages.response import LotteryStateServerMessage, LotteryStateMessage
 
 
@@ -16,8 +16,7 @@ async def websocket_handler(request: web.Request) -> web.WebSocketResponse:
     ws = web.WebSocketResponse()
     await ws.prepare(request)
     state: LotteryState = request.app["state"]
-    player_id = str(uuid.uuid4())
-    state.players[player_id] = Player(ws=ws, score=0)
+    player_id = state.add_player(ws)
     await ws.send_json(
         data=LotteryStateServerMessage(
             data=LotteryStateMessage(
@@ -32,7 +31,7 @@ async def websocket_handler(request: web.Request) -> web.WebSocketResponse:
         async for msg in ws:
             await dispatcher.dispatch(player_id, msg, state, ws)
     finally:
-        player = state.players.pop(player_id, None)
+        player = state.remove_player(player_id)
         if player:
             await player.ws.close(code=WSCloseCode.GOING_AWAY, message=b"Shutdown")
 

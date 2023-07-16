@@ -12,7 +12,7 @@ def main():
     app["state"] = LotteryState()
     app.add_routes([web.get("/", index_handler), web.get("/ws", websocket_handler)])
 
-    # app.on_shutdown(shutdown_handler)
+    app.on_shutdown.append(shutdown_handler)
     web.run_app(app, host=args.host, port=args.port)
 
 

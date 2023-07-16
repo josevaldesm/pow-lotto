@@ -26,7 +26,7 @@ class MessageDispatcher:
             return await self.__dispatch(parsed, state, ws)
         elif request.type == WSMsgType.ERROR:
             print("ws connection closed with exception %s" % ws.exception())
-            player = state.players.pop(player_id, None)
+            player = state.remove_player(player_id)
             if player:
                 await player.ws.close(code=WSCloseCode.GOING_AWAY, message=b"Shutdown")
 
