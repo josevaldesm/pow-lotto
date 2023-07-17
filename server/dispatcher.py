@@ -1,4 +1,5 @@
 import json
+import asyncio
 
 from aiohttp import WSCloseCode, WSMessage, WSMsgType, web
 from pydantic import ValidationError
@@ -50,7 +51,7 @@ class MessageDispatcher:
         state: LotteryState,
         ws: web.WebSocketResponse,
     ):
-        print(f"Incoming message from {player_id}:\n \t{request}")
+        print(f"Incoming message from {player_id}:\n \t{request}\n")
         try:
             parsed = PlayerRequest.model_validate({"request": request}).request
         except ValidationError as e:
@@ -74,5 +75,4 @@ class MessageDispatcher:
             wss = [player.ws for player in state.players.values()]
 
         # Broadcast
-        for pws in wss:
-            await pws.send_json(response.model_dump())
+        await asyncio.gather(*[pws.send_json(response.model_dump()) for pws in wss])

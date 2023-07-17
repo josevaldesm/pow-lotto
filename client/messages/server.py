@@ -43,6 +43,7 @@ class ServerMessageError(BaseModel):
     error: Literal[True] = True
     type: str
     message: str
+    data: dict | None = None
 
 
 MessageSuccess = Annotated[

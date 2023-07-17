@@ -2,6 +2,7 @@ import uuid
 import hashlib
 import threading
 from dataclasses import dataclass, field
+from time import time
 
 from aiohttp import web
 from pydantic import BaseModel, ConfigDict
@@ -16,25 +17,65 @@ class Player(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
-class PlayerVerdict(BaseModel):
-    round: int
+class PlayerLog(BaseModel):
+    ts: int
+    round: int 
+    winner: str
+    message: str
     candidate: str
+
+class PlayerVerdict(BaseModel):
     verdict: bool
+
+class CurrentCandidate(BaseModel):
+    player_id: str
+    r: str 
+
+    def get_string(self) -> str:
+        return self.player_id + self.r
 
 
 @dataclass
 class LotteryState:
-    players: dict[str, Player] = field(default_factory=dict)
-    verdict: dict[str, PlayerVerdict] | None = None
     round: int = 0
-    current_message: str = hashlib.sha256(get_random_string(32).encode()).hexdigest()
     difficulty: int = 10
+    max_rounds: int | None = None
+    current_message: str = hashlib.sha256(get_random_string(32).encode()).hexdigest()
+    current_candidate: CurrentCandidate | None = None
+    ts_per_round: list[PlayerLog] = field(default_factory=list)
+    players: dict[str, Player] = field(default_factory=dict)
+    verdict: dict[str, bool] = field(default_factory=dict)
     players_mutex = threading.Lock()
 
-    def step(self, candidate: str) -> None:
+    def step(self) -> None:
+        if self.current_candidate is None:
+            raise ValueError("Cannot step if current_candidate is None")
+        
+        print(f"Next round: {self.round} -> {self.round + 1}")
+        winner = self.current_candidate.player_id
+        player = self.players.get(winner, None)
+        if player:
+            player.score += 1
+
+        self.ts_per_round.append(
+            PlayerLog(
+                ts=int(time()),
+                round=self.round,
+                winner=winner,
+                message=self.current_message,
+                candidate=self.current_candidate.get_string()
+            )
+        )
+        if self.max_rounds and self.max_rounds == self.round + 1:
+            print(f"Max round reached: {self.max_rounds} == {self.round + 1}")
+            raise ValueError("Max round reached")
+        
         self.round += 1
-        self.current_message = hashlib.sha256(candidate.encode()).hexdigest()
-        self.verdict = None
+        self.current_message = hashlib.sha256(
+            self.current_candidate.get_string().encode()
+        ).hexdigest()
+        self.current_candidate = None
+        self.verdict = {}
 
     def add_player(self, ws: web.WebSocketResponse) -> str:
         with self.players_mutex:
@@ -45,12 +86,8 @@ class LotteryState:
 
     def remove_player(self, player_id: str) -> Player | None:
         with self.players_mutex:
-            if self.verdict:
-                self.verdict.pop(player_id, None)  # removing verdict block if exists
+            self.verdict.pop(player_id, None)  # removing verdict block if exists
             return self.players.pop(player_id, None)
 
-    def get_current_round_blocks(self):
-        assert self.verdict != None, "Attempt to get blocks when verdict is not set"
-        return list(
-            filter(lambda block: block.round == self.round, self.verdict.values())
-        )
+    def get_verdicts(self):
+        return self.verdict

@@ -9,7 +9,7 @@ from server.routes.handler import index_handler, websocket_handler
 def main():
     args = get_args()
     app = web.Application()
-    state = LotteryState(difficulty=args.difficulty)
+    state = LotteryState(difficulty=args.difficulty, max_rounds=args.max_rounds if args.max_rounds != -1 else None)
     app["state"] = state
     print(
         "Initializating Lottery Server with current state:\n"

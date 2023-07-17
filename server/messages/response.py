@@ -19,11 +19,11 @@ class CandidateMessage(BaseModel):
     r: str
     player_id: str
 
-
 class ServerMessageError(BaseModel, Generic[T]):
     error: Literal[True] = True
     type: str
     message: str
+    data: dict | None = None
 
 
 class ServerMessageSuccess(BaseModel, Generic[T]):

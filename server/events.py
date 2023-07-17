@@ -1,3 +1,4 @@
+import json
 from aiohttp import WSCloseCode, web
 
 from server.models import LotteryState, Player
@@ -14,3 +15,5 @@ async def shutdown_handler(app: web.Application):
 
     for player in players:
         await player.ws.close(code=WSCloseCode.GOING_AWAY, message=b"Shutdown")
+
+    print(f"\nTimestamps per round\n\t{json.dumps([log.model_dump() for log in  state.ts_per_round], indent=4)}")

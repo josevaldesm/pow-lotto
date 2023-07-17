@@ -1,3 +1,5 @@
+import os
+import signal
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar
 
@@ -12,7 +14,7 @@ from server.messages.response import (
     ServerMessage,
     ServerMessageError,
 )
-from server.models import LotteryState, PlayerVerdict
+from server.models import LotteryState, CurrentCandidate
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -25,69 +27,75 @@ class RequestHandler(ABC, Generic[T]):
 
 
 class CandidateRequestHandler(RequestHandler[CandidateData]):
-
     @staticmethod
     def handle(player_id: str, state: LotteryState, data: CandidateData):
         with state.players_mutex:
-            if state.verdict is not None:
+            if state.current_candidate is not None:
                 return ServerMessageError(
                     type="VERDICT_ALREADY_SET",
-                    message="Attempt to send a candidate where players are verdicting"
+                    message=f"Player {player_id} attempted to send a candidate where players are verdicting",
+                    data={ "r": state.current_candidate.r, "player_id": state.current_candidate.player_id }
                 )
 
-            state.verdict = {}
+            state.current_candidate = CurrentCandidate(player_id=player_id, r=data.r)
 
         return CandidateServerMessage(
-            data=CandidateMessage(
-                r=data.r,
-                player_id=player_id
-            )
+            data=CandidateMessage(r=data.r, player_id=player_id)
         )
+
 
 class LotteryStateRequestHandler(RequestHandler[LotteryStateData]):
     @staticmethod
     def handle(player_id: str, state: LotteryState, data: LotteryStateData):
         with state.players_mutex:
-            if state.verdict is None:
+            if state.current_candidate is None:
                 return ServerMessageError(
                     type="VERDICT_NOT_SET",
-                    message="Attempt to send a verdict where no player send a candidate before",
+                    message=f"Player {player_id} attempted to send a verdict where no player send a candidate before",
+                    data=LotteryStateMessage(
+                        round=state.round,
+                        k=state.difficulty,
+                        current_message=state.current_message,
+                    ).model_dump()
                 )
 
             if state.verdict.get(player_id, None) != None:
                 return ServerMessageError(
                     type="VERDICT_ALREADY_SENT",
-                    message="There already exists a verdict for current round",
+                    message=f"Player {player_id} sent a verdict for same round twice",
                 )
 
-            state.verdict[player_id] = PlayerVerdict(
-                round=state.round, candidate=data.candidate, verdict=data.verdict
-            )
+            if data.candidate != state.current_candidate.get_string():
+                return ServerMessageError(
+                    type="INVALID_VERDICT",
+                    message=f"Player {player_id} sent a verdict with a different candidate",
+                )
+
+            state.verdict[player_id] = data.verdict
 
             n_players = len(state.players)
-            blocks = state.get_current_round_blocks()
+            verdicts = state.get_verdicts()
 
-            print(f"n_players: {n_players}\nblocks={blocks}")
-            if (
-                len(blocks) < n_players / 2
-            ):  # At least 50% of players must to send a verdict
-                print("Waiting verdict for other players")
+            if (len(verdicts) < n_players):  
+                print("Waiting for more players until decide")
                 return None
-
-            agreeded = len(list(filter(lambda block: block.verdict, blocks)))
-            print(f"agreeded: {agreeded}")
-            if agreeded >= len(blocks):  # all verdict are true
-                print(f"Stepping round from {state.round} to {state.round + 1}")
-                state.step(blocks[0].candidate)
-                return LotteryStateServerMessage(
-                    data=LotteryStateMessage(
-                        round=state.round,
-                        k=state.difficulty,
-                        current_message=state.current_message,
+            
+            agreeded = len(list(filter(lambda agreeded: agreeded, verdicts.values())))
+            if agreeded >= len(verdicts) / 2:  # 50 % of verdict are true
+                try:
+                    state.step()
+                    return LotteryStateServerMessage(
+                        data=LotteryStateMessage(
+                            round=state.round,
+                            k=state.difficulty,
+                            current_message=state.current_message,
+                        )
                     )
-                )
+                except ValueError:
+                    os.kill(os.getpid(), signal.SIGINT)
+                    return None
 
-            # Go back to current round
+            print(f"There is no consensus over player {state.current_candidate.player_id} candidate, restarting round")
             return LotteryStateServerMessage(
                 data=LotteryStateMessage(
                     round=state.round,
