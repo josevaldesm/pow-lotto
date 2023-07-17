@@ -2,9 +2,9 @@ import uuid
 
 from aiohttp import WSCloseCode, web
 
-from proyecto.dispatcher import MessageDispatcher
-from proyecto.models import LotteryState
-from proyecto.messages.response import LotteryStateServerMessage, LotteryStateMessage
+from server.dispatcher import MessageDispatcher
+from server.models import LotteryState
+from server.messages.response import OnConnectServerMessage, LotteryStateMessageWithId
 
 
 async def index_handler(request: web.Request) -> web.Response:
@@ -18,11 +18,12 @@ async def websocket_handler(request: web.Request) -> web.WebSocketResponse:
     state: LotteryState = request.app["state"]
     player_id = state.add_player(ws)
     await ws.send_json(
-        data=LotteryStateServerMessage(
-            data=LotteryStateMessage(
+        data=OnConnectServerMessage(
+            data=LotteryStateMessageWithId(
                 round=state.round,
                 k=state.difficulty,
-                current_message= state.current_message
+                current_message=state.current_message,
+                player_id=player_id,
             )
         ).model_dump()
     )

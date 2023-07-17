@@ -11,6 +11,15 @@ class LotteryStateMessage(BaseModel):
     current_message: str
 
 
+class LotteryStateMessageWithId(LotteryStateMessage):
+    player_id: str
+
+
+class CandidateMessage(BaseModel):
+    r: str
+    player_id: str
+
+
 class ServerMessageError(BaseModel, Generic[T]):
     error: Literal[True] = True
     type: str
@@ -25,6 +34,15 @@ class ServerMessageSuccess(BaseModel, Generic[T]):
 
 class LotteryStateServerMessage(ServerMessageSuccess[LotteryStateMessage]):
     channel: Literal["LOTTERY_STATE"] = "LOTTERY_STATE"
+
+
+class OnConnectServerMessage(ServerMessageSuccess[LotteryStateMessageWithId]):
+    channel: Literal["ON_CONNECT"] = "ON_CONNECT"
+
+
+class CandidateServerMessage(ServerMessageSuccess[CandidateMessage]):
+    channel: Literal["CANDIDATE"] = "CANDIDATE"
+
 
 ServerMessage = Annotated[
     ServerMessageSuccess | ServerMessageError, Field(discriminator="error")

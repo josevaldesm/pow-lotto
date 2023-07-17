@@ -1,11 +1,13 @@
 from aiohttp import WSCloseCode, web
 
-from proyecto.models import LotteryState, Player
+from server.models import LotteryState, Player
+
 
 async def shutdown_handler(app: web.Application):
     state: LotteryState = app["state"]
     players: list[Player] = []
     with state.players_mutex:
+        state.verdict = {}  # Cleaning verdict state
         player_ids = list(state.players.keys())
         while player_ids:
             players.append(state.players.pop(player_ids.pop()))
