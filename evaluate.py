@@ -9,9 +9,9 @@ def worker(n: int):
     return result
 
 def main():
-    max_k = 20
+    max_k = 40
     players = [1, 5, 10, 16]
-    iterations = [{ "k": k, "n": n } for k in range(1, max_k + 1) for n in players]
+    iterations = [{ "k": k, "n": n } for k in range(21, max_k + 1) for n in players]
     results = []
     for kw in (pbar := tqdm(iterations)):
         k = kw["k"]
@@ -24,6 +24,11 @@ def main():
         text = json.loads("\n".join(out.decode().split("\n")[4:]))
         results.append({"k": k, "n": n, "data": text})
         with open("results.json", "w") as f:
-            json.dump(results, f, indent=4)
+            try:
+                json.dump(results, f, indent=4)
+            except json.JSONDecodeError:
+                print("ERRORRRR")
+                print(text)
+                break
 if __name__ == "__main__":
     main()
