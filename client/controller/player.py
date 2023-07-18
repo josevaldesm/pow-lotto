@@ -1,7 +1,6 @@
+import os
 import asyncio
 import hashlib
-import random
-import string
 
 from pydantic import BaseModel
 
@@ -40,23 +39,17 @@ class PlayerController(Controller):
         k = self.state.k
 
         attempt = 1
-        alphabet = (
-            string.ascii_letters + string.ascii_lowercase + string.ascii_uppercase
-        )
-        length = random.randint(6, 26)
-        ri = "".join(random.choices(alphabet, k=length))
+        ri = os.urandom(32).hex()
 
         candidate = hashlib.sha3_256(f"{vi}{pid}{ri}".encode()).hexdigest()
         lsb = bin(int(candidate, 16))[-k:]
         found = lsb == "".join(["0" for _ in range(k)])
         while not found and self.__computing:
             attempt += 1
-            length = random.randint(6, 26)
-            ri = "".join(random.choices(alphabet, k=length))
+            ri = os.urandom(32).hex()
             candidate = hashlib.sha3_256(f"{vi}{pid}{ri}".encode()).hexdigest()
             lsb = bin(int(candidate, 16))[-k:]
             found = lsb == "".join(["0" for _ in range(k)])
-            await asyncio.sleep(0.01)
 
         if not found:
             print("Compute interrupted")

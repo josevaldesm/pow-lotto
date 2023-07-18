@@ -39,7 +39,8 @@ class MessageDispatcher:
                 )
             return await self.__dispatch(player_id, parsed, state, ws)
         elif request.type == WSMsgType.ERROR:
-            print("ws connection closed with exception %s" % ws.exception())
+            if state.evaluate is False:
+                print("ws connection closed with exception %s" % ws.exception())
             player = state.remove_player(player_id)
             if player:
                 await player.ws.close(code=WSCloseCode.GOING_AWAY, message=b"Shutdown")
@@ -51,11 +52,11 @@ class MessageDispatcher:
         state: LotteryState,
         ws: web.WebSocketResponse,
     ):
-        print(f"Incoming message from {player_id}:\n \t{request}\n")
+        if state.evaluate is False:
+            print(f"Incoming message from {player_id}:\n \t{request}\n")
         try:
             parsed = PlayerRequest.model_validate({"request": request}).request
         except ValidationError as e:
-            print(e)
             return await ws.send_json(
                 ServerMessageError(
                     type="MESSAGE_ERROR",

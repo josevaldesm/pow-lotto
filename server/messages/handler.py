@@ -76,8 +76,9 @@ class LotteryStateRequestHandler(RequestHandler[LotteryStateData]):
             n_players = len(state.players)
             verdicts = state.get_verdicts()
 
-            if (len(verdicts) < n_players):  
-                print("Waiting for more players until decide")
+            if (len(verdicts) < n_players):
+                if state.evaluate is False:
+                    print("Waiting for more players until decide")
                 return None
             
             agreeded = len(list(filter(lambda agreeded: agreeded, verdicts.values())))
@@ -94,8 +95,9 @@ class LotteryStateRequestHandler(RequestHandler[LotteryStateData]):
                 except ValueError:
                     os.kill(os.getpid(), signal.SIGINT)
                     return None
-
-            print(f"There is no consensus over player {state.current_candidate.player_id} candidate, restarting round")
+                
+            if state.evaluate is False:
+                print(f"There is no consensus over player {state.current_candidate.player_id} candidate, restarting round")
             return LotteryStateServerMessage(
                 data=LotteryStateMessage(
                     round=state.round,

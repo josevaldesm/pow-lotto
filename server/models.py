@@ -40,6 +40,7 @@ class LotteryState:
     round: int = 0
     difficulty: int = 10
     max_rounds: int | None = None
+    evaluate: bool = False
     current_message: str = hashlib.sha256(get_random_string(32).encode()).hexdigest()
     current_candidate: CurrentCandidate | None = None
     ts_per_round: list[PlayerLog] = field(default_factory=list)
@@ -51,7 +52,8 @@ class LotteryState:
         if self.current_candidate is None:
             raise ValueError("Cannot step if current_candidate is None")
         
-        print(f"Next round: {self.round} -> {self.round + 1}")
+        if self.evaluate is False:
+            print(f"Next round: {self.round} -> {self.round + 1}")
         winner = self.current_candidate.player_id
         player = self.players.get(winner, None)
         if player:
@@ -67,7 +69,8 @@ class LotteryState:
             )
         )
         if self.max_rounds and self.max_rounds == self.round + 1:
-            print(f"Max round reached: {self.max_rounds} == {self.round + 1}")
+            if self.evaluate is False:
+                print(f"Max round reached: {self.max_rounds} == {self.round + 1}")
             raise ValueError("Max round reached")
         
         self.round += 1
